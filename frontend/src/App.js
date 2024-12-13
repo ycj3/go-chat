@@ -1,6 +1,7 @@
 // src/App.js
 import React, { useState, useEffect, useRef } from "react";
 import "./App.css";
+import { chat } from './message_pb'; // Path to your generated file
 
 const App = () => {
   const [conn, setConn] = useState(null);
@@ -32,27 +33,26 @@ const App = () => {
     if (!conn || !msg) return;
 
     const sender = getRandomSender();
-    const messageObj = {
-      sender: sender,
-      content: msg,
-    };
-
-    conn.send(JSON.stringify(messageObj));
+    const messageObj = chat.ChatMessage.create({user: sender, message: msg})
+    const msgBuffer = chat.ChatMessage.encode(messageObj).finish();
+    console.log("Encoded buffer:", msgBuffer);
+    conn.send(msgBuffer);
     setMsg("");
   };
 
   useEffect(() => {
     if ("WebSocket" in window) {
       const websocket = new WebSocket(`ws://${window.location.hostname}:8080/ws`);
+      websocket.binaryType = "arraybuffer";
+
       setConn(websocket);
 
       websocket.onclose = () => appendLog("Connection closed.");
       websocket.onmessage = (evt) => {
-        const messages = evt.data.split("\n");
-        messages.forEach((message) => {
-          const msgObj = JSON.parse(message);
-          appendLog(`${msgObj.sender}: ${msgObj.content}`);
-        });
+        const buffer = new Uint8Array(evt.data);
+        console.log("Received buffer:", buffer);
+        const msgObj = chat.ChatMessage.decode(buffer);
+        appendLog(`${msgObj.user}: ${msgObj.message}`);
       };
 
       return () => websocket.close();
