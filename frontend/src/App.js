@@ -35,27 +35,39 @@ const App = () => {
     const sender = getRandomSender();
     const messageObj = chat.ChatMessage.create({user: sender, message: msg})
     const msgBuffer = chat.ChatMessage.encode(messageObj).finish();
-    console.log("Encoded buffer:", msgBuffer);
     conn.send(msgBuffer);
     setMsg("");
   };
 
   useEffect(() => {
+    let isConnected = false;
+
     if ("WebSocket" in window) {
       const websocket = new WebSocket(`ws://${window.location.hostname}:8080/ws`);
       websocket.binaryType = "arraybuffer";
 
       setConn(websocket);
 
-      websocket.onclose = () => appendLog("Connection closed.");
+      websocket.onclose = () => {
+        console.log("WebSocket connection closed.");
+      };
+
+      websocket.onopen = () => {
+        console.log("WebSocket connection established.");
+        isConnected = true;
+      };
+
       websocket.onmessage = (evt) => {
         const buffer = new Uint8Array(evt.data);
-        console.log("Received buffer:", buffer);
         const msgObj = chat.ChatMessage.decode(buffer);
         appendLog(`${msgObj.user}: ${msgObj.message}`);
       };
 
-      return () => websocket.close();
+      return () => { 
+        if (isConnected && websocket.readyState === WebSocket.OPEN) {
+          websocket.close();
+        }
+      };
     } else {
       appendLog("Your browser does not support WebSockets.");
     }
