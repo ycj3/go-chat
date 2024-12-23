@@ -1,52 +1,35 @@
 // src/App.js
-import React, { useState, useEffect, useRef } from "react";
-import "./App.css";
-import { chat } from './message_pb'; // Path to your generated file
+import React, { useEffect, useState } from 'react';
+import { chat } from './message_pb'; // Assuming chat is imported from somewhere
 
-const App = () => {
-  const [conn, setConn] = useState(null);
+function App() {
+  const [ws, setWs] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [user, setUser] = useState("");
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [msg, setMsg] = useState("");
-  const logRef = useRef();
 
-  const senders = ["Alice", "Bob", "Charlie", "Dave", "Eve", "Grace", "Mallory"];
-
-  const getRandomSender = () => {
-    const randomIndex = Math.floor(Math.random() * senders.length);
-    return senders[randomIndex];
-  };
-
-  const appendLog = (text) => {
-    const log = logRef.current;
-    if (log) {
-      const doScroll = log.scrollTop > log.scrollHeight - log.clientHeight - 1;
-      const item = document.createElement("div");
-      item.innerText = text;
-      log.appendChild(item);
-      if (doScroll) {
-        log.scrollTop = log.scrollHeight - log.clientHeight;
-      }
-    }
-  };
-
-  const handleSubmit = (e) => {
+  const handleLogin = (e) => {
     e.preventDefault();
-    if (!conn || !msg) return;
+    setIsLoggedIn(true);
+  };
 
-    const sender = getRandomSender();
-    const messageObj = chat.ChatMessage.create({user: sender, message: msg})
+  const sendMessage = (msg) => {
+    const sender = user;
+    const messageObj = chat.ChatMessage.create({ user: sender, message: msg });
     const msgBuffer = chat.ChatMessage.encode(messageObj).finish();
-    conn.send(msgBuffer);
+    ws.send(msgBuffer);
     setMsg("");
   };
 
   useEffect(() => {
     let isConnected = false;
 
-    if ("WebSocket" in window) {
-      const websocket = new WebSocket(`ws://${window.location.hostname}:8080/ws`);
+    if (isLoggedIn && "WebSocket" in window) {
+      const websocket = new WebSocket(`ws://${window.location.hostname}:8080/ws?user=${user}`);
       websocket.binaryType = "arraybuffer";
 
-      setConn(websocket);
+      setWs(websocket);
 
       websocket.onclose = () => {
         console.log("WebSocket connection closed.");
@@ -60,57 +43,53 @@ const App = () => {
       websocket.onmessage = (evt) => {
         const buffer = new Uint8Array(evt.data);
         const msgObj = chat.ChatMessage.decode(buffer);
-        appendLog(`${msgObj.user}: ${msgObj.message}`);
+        setMessages((prevMessages) => [...prevMessages, `${msgObj.user}: ${msgObj.message}`]);
       };
 
-      return () => { 
+      return () => {
         if (isConnected && websocket.readyState === WebSocket.OPEN) {
           websocket.close();
         }
       };
+    } else if (!isLoggedIn) {
+      console.log("User is not logged in.");
     } else {
-      appendLog("Your browser does not support WebSockets.");
+      console.log("Your browser does not support WebSockets.");
     }
-  }, []);
+  }, [isLoggedIn, user]);
 
   return (
     <div>
-      <div id="log" ref={logRef} style={logStyle}></div>
-      <form id="form" onSubmit={handleSubmit} style={formStyle}>
-        <input
-          type="text"
-          id="msg"
-          value={msg}
-          onChange={(e) => setMsg(e.target.value)}
-          size="64"
-          autoFocus
-        />
-        <input type="submit" value="Send" />
-      </form>
+      {!isLoggedIn ? (
+        <form onSubmit={handleLogin}>
+          <input
+            type="text"
+            placeholder="Enter your username"
+            value={user}
+            onChange={(e) => setUser(e.target.value)}
+            required
+          />
+          <button type="submit">Login</button>
+        </form>
+      ) : (
+        <div>
+          <h1>WebSocket Chat</h1>
+          <div>
+            {messages.map((msg, index) => (
+              <div key={index}>{msg}</div>
+            ))}
+          </div>
+          <input
+            type="text"
+            value={msg}
+            onChange={(e) => setMsg(e.target.value)}
+            placeholder="Type a message"
+          />
+          <button onClick={() => sendMessage(msg)}>Send Message</button>
+        </div>
+      )}
     </div>
   );
-};
-
-const logStyle = {
-  background: "white",
-  margin: "0",
-  padding: "0.5em",
-  position: "absolute",
-  top: "0.5em",
-  left: "0.5em",
-  right: "0.5em",
-  bottom: "3em",
-  overflow: "auto",
-};
-
-const formStyle = {
-  padding: "0 0.5em",
-  margin: "0",
-  position: "absolute",
-  bottom: "1em",
-  left: "0px",
-  width: "100%",
-  overflow: "hidden",
-};
+}
 
 export default App;
