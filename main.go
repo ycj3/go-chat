@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"log"
 	"net/http"
@@ -29,6 +30,14 @@ func main() {
 	http.HandleFunc("/", serveHome)
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 		websocket.ServeWs(hub, w, r)
+	})
+	http.HandleFunc("/online", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		onlineInfo := map[string]interface{}{
+			"count":   hub.GetOnlineCount(),
+			"members": hub.GetOnlineMembers(),
+		}
+		json.NewEncoder(w).Encode(onlineInfo)
 	})
 	err := http.ListenAndServe(*addr, nil)
 	if err != nil {

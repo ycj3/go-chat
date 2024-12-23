@@ -55,3 +55,17 @@ func (h *Hub) GetClientByUser(user string) (*Client, bool) {
 	client, ok := h.userConnections[user]
 	return client, ok
 }
+
+// GetOnlineCount returns the number of online users.
+func (h *Hub) GetOnlineCount() int {
+	return len(h.userConnections)
+}
+
+// GetOnlineMembers returns the list of online users.
+func (h *Hub) GetOnlineMembers() []string {
+	members := make([]string, 0, len(h.userConnections))
+	for user := range h.userConnections {
+		members = append(members, user)
+	}
+	return members
+}

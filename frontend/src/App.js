@@ -1,4 +1,3 @@
-// src/App.js
 import React, { useEffect, useState } from 'react';
 import { chat } from './message_pb'; // Assuming chat is imported from somewhere
 
@@ -8,6 +7,8 @@ function App() {
   const [user, setUser] = useState("");
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [msg, setMsg] = useState("");
+  const [onlineCount, setOnlineCount] = useState(0);
+  const [onlineMembers, setOnlineMembers] = useState([]);
 
   const handleLogin = (e) => {
     e.preventDefault();
@@ -58,6 +59,17 @@ function App() {
     }
   }, [isLoggedIn, user]);
 
+  useEffect(() => {
+    if (isLoggedIn) {
+      fetch(`http://${window.location.hostname}:8080/online`)
+        .then((response) => response.json())
+        .then((data) => {
+          setOnlineCount(data.count);
+          setOnlineMembers(data.members);
+        });
+    }
+  }, [isLoggedIn]);
+
   return (
     <div>
       {!isLoggedIn ? (
@@ -74,6 +86,14 @@ function App() {
       ) : (
         <div>
           <h1>WebSocket Chat</h1>
+          <div>
+            <h2>Online Users: {onlineCount}</h2>
+            <ul>
+              {onlineMembers.map((member, index) => (
+                <li key={index}>{member}</li>
+              ))}
+            </ul>
+          </div>
           <div>
             {messages.map((msg, index) => (
               <div key={index}>{msg}</div>
