@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { chat } from './message_pb'; // Assuming chat is imported from somewhere
+import { chat } from './pb/message_pb'; // Assuming chat is imported from somewhere
 
 function App() {
   const [ws, setWs] = useState(null);
