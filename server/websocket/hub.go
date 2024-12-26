@@ -2,6 +2,7 @@ package websocket
 
 import (
 	"github.com/ycj3/go-chat/server/models"
+	"gorm.io/gorm"
 )
 
 // Hub maintains the set of active clients and broadcasts messages to the clients.
@@ -16,15 +17,18 @@ type Hub struct {
 	unregister chan *Client
 	// User connections cache.
 	userConnections map[*models.User]*Client
+	// Reference to the database
+	db *gorm.DB
 }
 
-func NewHub() *Hub {
+func NewHub(db *gorm.DB) *Hub {
 	return &Hub{
 		broadcast:       make(chan []byte),
 		register:        make(chan *Client),
 		unregister:      make(chan *Client),
 		clients:         make(map[*Client]bool),
 		userConnections: make(map[*models.User]*Client),
+		db:              db,
 	}
 }
 

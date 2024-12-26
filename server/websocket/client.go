@@ -1,13 +1,13 @@
 package websocket
 
 import (
+	"encoding/json"
 	"log"
 	"net/http"
 	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/ycj3/go-chat/server/models"
-	"gorm.io/gorm"
 )
 
 const (
@@ -65,6 +65,18 @@ func (c *Client) readPump() {
 			}
 			break
 		}
+		// Handle heartbeat messages
+		var msg map[string]interface{}
+		if err := json.Unmarshal(message, &msg); err == nil {
+			if msg["type"] == "heartbeat" {
+				c.user.LastActive = time.Now().Unix()
+				// Update the user's last_active timestamp in the cache or database
+				if err := c.hub.db.Save(c.user).Error; err != nil {
+					log.Printf("error updating last_active: %v", err)
+				}
+				continue
+			}
+		}
 		c.hub.broadcast <- message
 	}
 }
@@ -115,14 +127,14 @@ func (c *Client) writePump() {
 }
 
 // ServeWs handles websocket requests from the peer.
-func ServeWs(hub *Hub, db *gorm.DB, w http.ResponseWriter, r *http.Request) {
+func ServeWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Println(err)
 		return
 	}
 	userID := r.URL.Query().Get("user_id") // Assuming the user is passed as a query parameter
-	user, err := models.GetUserByID(db, userID)
+	user, err := models.GetUserByID(hub.db, userID)
 	if err != nil {
 		log.Println(err)
 		return

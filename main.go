@@ -37,11 +37,11 @@ func main() {
 	// Auto migrate the User schema
 	db.AutoMigrate(&models.User{})
 
-	hub := websocket.NewHub()
+	hub := websocket.NewHub(db)
 	go hub.Run()
 	http.HandleFunc("/", serveHome)
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
-		websocket.ServeWs(hub, db, w, r)
+		websocket.ServeWs(hub, w, r)
 	})
 	http.HandleFunc("/online", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
