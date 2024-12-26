@@ -13,21 +13,9 @@ function App() {
   const handleLogin = (e) => {
     e.preventDefault();
     setIsLoggedIn(true);
-  };
 
-  const sendMessage = (msg) => {
-    const sender = user;
-    const messageObj = chat.ChatMessage.create({ user: sender, message: msg });
-    const msgBuffer = chat.ChatMessage.encode(messageObj).finish();
-    ws.send(msgBuffer);
-    setMsg("");
-  };
-
-  useEffect(() => {
-    let isConnected = false;
-
-    if (isLoggedIn && "WebSocket" in window) {
-      const websocket = new WebSocket(`ws://${window.location.hostname}:8080/ws?user=${user}`);
+    if ("WebSocket" in window) {
+      const websocket = new WebSocket(`ws://${window.location.hostname}:8080/ws?user_id=${user}`);
       websocket.binaryType = "arraybuffer";
 
       setWs(websocket);
@@ -38,7 +26,12 @@ function App() {
 
       websocket.onopen = () => {
         console.log("WebSocket connection established.");
-        isConnected = true;
+        fetch(`http://${window.location.hostname}:8080/online`)
+          .then((response) => response.json())
+          .then((data) => {
+            setOnlineCount(data.count);
+            setOnlineMembers(data.members);
+          });
       };
 
       websocket.onmessage = (evt) => {
@@ -47,28 +40,19 @@ function App() {
         setMessages((prevMessages) => [...prevMessages, `${msgObj.user}: ${msgObj.message}`]);
       };
 
-      return () => {
-        if (isConnected && websocket.readyState === WebSocket.OPEN) {
-          websocket.close();
-        }
+      websocket.onerror = (error) => {
+        console.error("WebSocket error:", error);
       };
-    } else if (!isLoggedIn) {
-      console.log("User is not logged in.");
-    } else {
-      console.log("Your browser does not support WebSockets.");
     }
-  }, [isLoggedIn, user]);
+  };
 
-  useEffect(() => {
-    if (isLoggedIn) {
-      fetch(`http://${window.location.hostname}:8080/online`)
-        .then((response) => response.json())
-        .then((data) => {
-          setOnlineCount(data.count);
-          setOnlineMembers(data.members);
-        });
-    }
-  }, [isLoggedIn]);
+  const sendMessage = (msg) => {
+    const sender = user;
+    const messageObj = chat.ChatMessage.create({ user: sender, message: msg });
+    const msgBuffer = chat.ChatMessage.encode(messageObj).finish();
+    ws.send(msgBuffer);
+    setMsg("");
+  };
 
   return (
     <div>
@@ -90,22 +74,27 @@ function App() {
             <h2>Online Users: {onlineCount}</h2>
             <ul>
               {onlineMembers.map((member, index) => (
-                <li key={index}>{member}</li>
+                <li key={index}>{member.nickname}</li>
               ))}
             </ul>
           </div>
           <div>
-            {messages.map((msg, index) => (
-              <div key={index}>{msg}</div>
-            ))}
+            <input
+              type="text"
+              value={msg}
+              onChange={(e) => setMsg(e.target.value)}
+              placeholder="Enter your message"
+            />
+            <button onClick={() => sendMessage(msg)}>Send</button>
           </div>
-          <input
-            type="text"
-            value={msg}
-            onChange={(e) => setMsg(e.target.value)}
-            placeholder="Type a message"
-          />
-          <button onClick={() => sendMessage(msg)}>Send Message</button>
+          <div>
+            <h2>Messages</h2>
+            <ul>
+              {messages.map((message, index) => (
+                <li key={index}>{message}</li>
+              ))}
+            </ul>
+          </div>
         </div>
       )}
     </div>

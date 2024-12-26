@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/ycj3/go-chat/server/models"
+	"gorm.io/gorm"
 )
 
 const (
@@ -39,7 +41,7 @@ type Client struct {
 	send chan []byte
 
 	// The user associated with the connection.
-	user string
+	user *models.User
 }
 
 // readPump pumps messages from the websocket connection to the hub.
@@ -113,13 +115,18 @@ func (c *Client) writePump() {
 }
 
 // ServeWs handles websocket requests from the peer.
-func ServeWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
+func ServeWs(hub *Hub, db *gorm.DB, w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Println(err)
 		return
 	}
-	user := r.URL.Query().Get("user") // Assuming the user is passed as a query parameter
+	userID := r.URL.Query().Get("user_id") // Assuming the user is passed as a query parameter
+	user, err := models.GetUserByID(db, userID)
+	if err != nil {
+		log.Println(err)
+		return
+	}
 	client := &Client{hub: hub, conn: conn, send: make(chan []byte, 256), user: user}
 	client.hub.register <- client
 	// Allow collection of memory referenced by the caller by doing all work in

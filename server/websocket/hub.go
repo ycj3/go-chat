@@ -1,5 +1,9 @@
 package websocket
 
+import (
+	"github.com/ycj3/go-chat/server/models"
+)
+
 // Hub maintains the set of active clients and broadcasts messages to the clients.
 type Hub struct {
 	// Registered clients.
@@ -11,7 +15,7 @@ type Hub struct {
 	// Unregister requests from clients.
 	unregister chan *Client
 	// User connections cache.
-	userConnections map[string]*Client
+	userConnections map[*models.User]*Client
 }
 
 func NewHub() *Hub {
@@ -20,7 +24,7 @@ func NewHub() *Hub {
 		register:        make(chan *Client),
 		unregister:      make(chan *Client),
 		clients:         make(map[*Client]bool),
-		userConnections: make(map[string]*Client),
+		userConnections: make(map[*models.User]*Client),
 	}
 }
 
@@ -51,7 +55,7 @@ func (h *Hub) Run() {
 }
 
 // GetClientByUser returns the client associated with the given user.
-func (h *Hub) GetClientByUser(user string) (*Client, bool) {
+func (h *Hub) GetClientByUser(user *models.User) (*Client, bool) {
 	client, ok := h.userConnections[user]
 	return client, ok
 }
@@ -62,8 +66,8 @@ func (h *Hub) GetOnlineCount() int {
 }
 
 // GetOnlineMembers returns the list of online users.
-func (h *Hub) GetOnlineMembers() []string {
-	members := make([]string, 0, len(h.userConnections))
+func (h *Hub) GetOnlineMembers() []*models.User {
+	members := make([]*models.User, 0, len(h.userConnections))
 	for user := range h.userConnections {
 		members = append(members, user)
 	}
