@@ -17,7 +17,7 @@ function App() {
         if (ws.readyState === WebSocket.OPEN) {
           ws.send(JSON.stringify({ type: 'heartbeat', user_id: user }));
         }
-      }, 3000); 
+      }, 15000); 
     }
     return () => clearInterval(heartbeatInterval);
   }, [ws, user]);

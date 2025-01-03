@@ -2,11 +2,11 @@ package websocket
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/sirupsen/logrus"
 	"github.com/ycj3/go-chat/server/models"
 )
 
@@ -53,6 +53,7 @@ func (c *Client) readPump() {
 	defer func() {
 		c.hub.unregister <- c
 		c.conn.Close()
+		logrus.Debug("Client unregistered and connection closed for user:", c.user.UserID)
 	}()
 	c.conn.SetReadLimit(maxMessageSize)
 	c.conn.SetReadDeadline(time.Now().Add(pongWait))
@@ -61,23 +62,30 @@ func (c *Client) readPump() {
 		_, message, err := c.conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				log.Printf("error: %v", err)
+				logrus.Errorf("Unexpected close error: %v", err)
+			} else {
+				logrus.Debugf("Connection closed: %v", err)
 			}
 			break
 		}
+		logrus.Debugf("Message received from user %s: %s", c.user.UserID, string(message))
 		// Handle heartbeat messages
 		var msg map[string]interface{}
 		if err := json.Unmarshal(message, &msg); err == nil {
 			if msg["type"] == "heartbeat" {
 				c.user.LastActive = time.Now().Unix()
+				c.user.IsOnline = c.user.IsCurrentlyOnline()
 				// Update the user's last_active timestamp in the cache or database
 				if err := c.hub.db.Save(c.user).Error; err != nil {
-					log.Printf("error updating last_active: %v", err)
+					logrus.Errorf("Error updating last_active for user %s: %v", c.user.UserID, err)
+				} else {
+					logrus.Debugf("Updated last_active for user %s", c.user.UserID)
 				}
 				continue
 			}
 		}
 		c.hub.broadcast <- message
+		logrus.Debugf("Broadcasted message from user %s", c.user.UserID)
 	}
 }
 
@@ -115,11 +123,13 @@ func (c *Client) writePump() {
 			}
 
 			if err := w.Close(); err != nil {
+				logrus.Debug("Error closing writer:", err)
 				return
 			}
 		case <-ticker.C:
 			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+				logrus.Debug("Error writing ping message:", err)
 				return
 			}
 		}
@@ -128,21 +138,26 @@ func (c *Client) writePump() {
 
 // ServeWs handles websocket requests from the peer.
 func ServeWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
-	conn, err := upgrader.Upgrade(w, r, nil)
-	if err != nil {
-		log.Println(err)
-		return
-	}
-	userID := r.URL.Query().Get("user_id") // Assuming the user is passed as a query parameter
+	logrus.Debug("ServeWs called with URL:", r.URL)
+	userID := r.URL.Query().Get("user_id")
+	logrus.Debug("User ID from query parameter:", userID)
 	user, err := models.GetUserByID(hub.db, userID)
 	if err != nil {
-		log.Println(err)
+		logrus.Debug("Error getting user by ID:", err)
+		http.Error(w, "User not found", http.StatusNotFound)
+		return
+	}
+	conn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		logrus.Debug("Error upgrading connection:", err)
 		return
 	}
 	client := &Client{hub: hub, conn: conn, send: make(chan []byte, 256), user: user}
 	client.hub.register <- client
+	logrus.Debug("Client registered:", client.user.UserID)
 	// Allow collection of memory referenced by the caller by doing all work in
 	// new goroutines.
 	go client.writePump()
 	go client.readPump()
+	logrus.Debug("Client writePump and readPump started for user:", client.user.UserID)
 }

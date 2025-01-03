@@ -1,6 +1,7 @@
 package websocket
 
 import (
+	"github.com/sirupsen/logrus"
 	"github.com/ycj3/go-chat/server/models"
 	"gorm.io/gorm"
 )
@@ -66,14 +67,15 @@ func (h *Hub) GetClientByUser(user *models.User) (*Client, bool) {
 
 // GetOnlineCount returns the number of online users.
 func (h *Hub) GetOnlineCount() int {
-	return len(h.userConnections)
+	return len(h.GetOnlineMembers())
 }
 
 // GetOnlineMembers returns the list of online users.
-func (h *Hub) GetOnlineMembers() []*models.User {
-	members := make([]*models.User, 0, len(h.userConnections))
-	for user := range h.userConnections {
-		members = append(members, user)
+func (h *Hub) GetOnlineMembers() []models.User {
+	onlineUsers, err := models.GetOnlineUsers(h.db)
+	if err != nil {
+		logrus.Errorf("Error getting online users: %v", err)
+		return []models.User{}
 	}
-	return members
+	return onlineUsers
 }
