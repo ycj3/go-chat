@@ -1,30 +1,20 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"net/http"
 
 	"github.com/sirupsen/logrus"
+	"github.com/ycj3/go-chat/server/handlers"
 	"github.com/ycj3/go-chat/server/models"
+	"github.com/ycj3/go-chat/server/router"
+	"github.com/ycj3/go-chat/server/services"
 	"github.com/ycj3/go-chat/server/websocket"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
 
 var addr = flag.String("addr", ":8080", "http service address")
-
-func serveHome(w http.ResponseWriter, r *http.Request) {
-	logrus.Debug("serveHome called with URL:", r.URL)
-	if r.URL.Path != "/" {
-		http.Error(w, "Not found", http.StatusNotFound)
-		return
-	}
-	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-}
 
 func main() {
 	// Set log level to Debug
@@ -49,23 +39,9 @@ func main() {
 	go hub.Run()
 	logrus.Info("WebSocket hub started")
 
-	http.HandleFunc("/", serveHome)
-	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
-		logrus.Debug("WebSocket connection request received")
-		websocket.ServeWs(hub, w, r)
-	})
-	http.HandleFunc("/online", func(w http.ResponseWriter, r *http.Request) {
-		logrus.Debug("Online users request received")
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		onlineInfo := map[string]interface{}{
-			"count":   hub.GetOnlineCount(),
-			"members": hub.GetOnlineMembers(),
-		}
-		json.NewEncoder(w).Encode(onlineInfo)
-	})
+	userService := services.NewUserService(db)
+	userHandler := handlers.NewUserHandler(userService)
+	r := router.NewRouter(userHandler, hub)
 
-	err = http.ListenAndServe(*addr, nil)
-	if err != nil {
-		logrus.Fatal("ListenAndServe: ", err)
-	}
+	logrus.Fatal(http.ListenAndServe(*addr, r))
 }
