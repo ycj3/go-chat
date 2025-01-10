@@ -1,9 +1,10 @@
 package connect
 
 import (
+	"go-chat/server/models"
+	"go-chat/server/pb"
+
 	"github.com/gorilla/websocket"
-	"github.com/ycj3/go-chat/server/models"
-	"github.com/ycj3/go-chat/server/pb"
 )
 
 type Session struct {

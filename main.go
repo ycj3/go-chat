@@ -2,10 +2,14 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"os"
 
+	"go-chat/server/api"
+	"go-chat/server/connect"
+	"go-chat/server/logic"
+
 	"github.com/sirupsen/logrus"
-	"github.com/ycj3/go-chat/server/connect"
 )
 
 var addr = flag.String("addr", ":8080", "http service address")
@@ -16,9 +20,25 @@ func main() {
 	// Set log level to Debug
 	logrus.SetLevel(logrus.DebugLevel)
 
-	logrus.Info("Starting server on address:", *addr)
+	var module string
+	flag.StringVar(&module, "module", "", "assign run module")
+	flag.Parse()
+	fmt.Println(fmt.Sprintf("start run %s module", module))
 
-	connect.NewConnect().Run()
+	switch module {
+	case "logic":
+		logic.New().Run()
+	case "connect":
+		logrus.Info("Starting server on address:", *addr)
+		connect.NewConnect().Run()
+	case "api":
+		api.New().Run()
+	default:
+		fmt.Println("exiting,module param error!")
+		return
+	}
+	fmt.Println(fmt.Sprintf("run %s module done!", module))
+
 	// dsn := "root@tcp(127.0.0.1:3306)/Chat?charset=utf8mb4&parseTime=True&loc=Local"
 	// logrus.Debug("Connecting to database with DSN:", dsn)
 	// db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})

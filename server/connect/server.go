@@ -3,9 +3,10 @@ package connect
 import (
 	"time"
 
+	"go-chat/server/pb"
+
 	"github.com/gorilla/websocket"
 	"github.com/sirupsen/logrus"
-	"github.com/ycj3/go-chat/server/pb"
 	"google.golang.org/protobuf/proto"
 )
 
