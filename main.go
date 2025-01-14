@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"os"
 
-	"go-chat/server/api"
-	"go-chat/server/connect"
-	"go-chat/server/logic"
+	"go-chat/api"
+	"go-chat/connect"
+	"go-chat/logic"
 
 	"github.com/sirupsen/logrus"
 )
