@@ -1,7 +1,7 @@
 [common-etcd]
 host = "127.0.0.1:2379"
 basePath = "/go-chat_srv"
-serverPathLogic = "LogicRpc"
+ServerPathRpc = "RpcHandler"
 serverPathConnect = "ConnectRpc"
 userName = ""
 password = ""

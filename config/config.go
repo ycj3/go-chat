@@ -124,7 +124,7 @@ func GetGinRunMode() string {
 type CommonEtcd struct {
 	Host              string `mapstructure:"host"`
 	BasePath          string `mapstructure:"basePath"`
-	ServerPathLogic   string `mapstructure:"serverPathLogic"`
+	ServerPathRpc     string `mapstructure:"ServerPathRpc"`
 	ServerPathConnect string `mapstructure:"serverPathConnect"`
 	UserName          string `mapstructure:"userName"`
 	Password          string `mapstructure:"password"`
